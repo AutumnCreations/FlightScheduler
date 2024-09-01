@@ -1,0 +1,6 @@
+@Alaska_Calendar_HostAddress = http://localhost:5047
+
+GET {{Alaska_Calendar_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
