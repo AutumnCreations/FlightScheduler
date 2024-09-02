@@ -1,8 +1,11 @@
 <script lang="ts">
 	import '../app.postcss';
-	import { AppShell, AppBar } from '@skeletonlabs/skeleton';
-	import { LightSwitch } from '@skeletonlabs/skeleton';
+	import { AppShell, AppBar, LightSwitch } from '@skeletonlabs/skeleton';
 	import '@fortawesome/fontawesome-free/css/all.min.css';
+	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
+	import { storePopup } from '@skeletonlabs/skeleton';
+
+	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 </script>
 
 <AppShell>
@@ -15,14 +18,6 @@
 				</strong>
 			</svelte:fragment>
 			<svelte:fragment slot="trail">
-				<!-- 				<a
-					class="btn btn-sm variant-ghost-surface"
-					href="link"
-					target="_blank"
-					rel="noreferrer"
-				>
-					Text
-				</a> -->
 				<LightSwitch />
 			</svelte:fragment>
 		</AppBar>

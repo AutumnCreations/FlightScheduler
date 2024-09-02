@@ -1,6 +1,6 @@
+using Alaska_Calendar.Commands;
 using Alaska_Calendar.Data;
 using Microsoft.EntityFrameworkCore;
-using System;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,7 +39,17 @@ app.MapFallbackToFile("index.html");
 
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var services = scope.ServiceProvider;
+    var context = services.GetRequiredService<ApplicationDbContext>();
+
+    context.Database.Migrate();
+
+    if (!context.Airports.Any())
+    {
+        var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "airports.json");
+        SeedAirportsCommand.Execute(services, jsonPath);
+    }
+
     DatabaseSeeder.SeedFlights(context);
 }
 

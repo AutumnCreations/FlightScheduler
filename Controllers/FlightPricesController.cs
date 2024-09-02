@@ -16,47 +16,13 @@ namespace Alaska_Calendar.Controllers
             _context = context;
         }
 
-        // Get ALL flights: api/FlightPrices
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<FlightPrice>>> GetFlightPrices()
-        {
-            return await _context.FlightPrices.ToListAsync();
-        }
-
-        // Get specific flight: api/FlightPrices/{id}
-        [HttpGet("{id}")]
-        public async Task<ActionResult<FlightPrice>> GetFlightPrice(int id)
-        {
-            var flightPrice = await _context.FlightPrices.FindAsync(id);
-
-            if (flightPrice == null)
-            {
-                return NotFound();
-            }
-
-            return flightPrice;
-        }
-
         // Get flights for a specific month, returning the cheapest flight per each day: api/FlightPrices/monthly?year=2024&month=9
         [HttpGet("monthly")]
         public ActionResult<IEnumerable<FlightPrice>> GetMonthlyFlights(int year, int month)
         {
-            var startDate = new DateTime(year, month + 1, 1);
+            var startDate = new DateTime(year, month, 1);
             var endDate = startDate.AddMonths(1);
-            Console.WriteLine(startDate);
-            Console.WriteLine(endDate);
-
-            var flights = _context.FlightPrices
-                .Where(fp => fp.Date >= startDate && fp.Date < endDate)
-                .GroupBy(fp => fp.Date.Date)
-                .Select(g => new FlightPrice
-                {
-                    Date = g.Key,
-                    Price = g.Min(fp => fp.Price),
-                    Id = g.First().Id
-                })
-                .OrderBy(fp => fp.Date)
-                .ToList();
+            List<FlightPrice> flights = GetCheapestFlights(startDate, endDate);
             return Ok(flights);
         }
 
@@ -65,13 +31,8 @@ namespace Alaska_Calendar.Controllers
         public ActionResult<IEnumerable<FlightPrice>> GetWeeklyFlights(int year, int month, int day)
         {
             var startDate = new DateTime(year, month, day);
-            var endDate = startDate.AddDays(7).AddSeconds(-1);
-
-            var flights = _context.FlightPrices
-                .Where(fp => fp.Date >= startDate && fp.Date <= endDate)
-                .OrderBy(fp => fp.Date)
-                .ToList();
-
+            var endDate = startDate.AddDays(7);
+            var flights = GetCheapestFlights(startDate, endDate);
             return Ok(flights);
         }
 
@@ -80,14 +41,34 @@ namespace Alaska_Calendar.Controllers
         public ActionResult<IEnumerable<FlightPrice>> GetDailyFlights(int year, int month, int day)
         {
             var startDate = new DateTime(year, month, day);
-            var endDate = startDate.AddDays(1).AddSeconds(-1);
-
+            var endDate = startDate.AddDays(1);
             var flights = _context.FlightPrices
-                .Where(fp => fp.Date >= startDate && fp.Date <= endDate)
-                .OrderBy(fp => fp.Date)
+                .Include(fp => fp.DepartureAirport)
+                .Include(fp => fp.ArrivalAirport)
+                .Where(fp => fp.DepartureTime >= startDate && fp.DepartureTime < endDate)
+                .OrderBy(fp => fp.DepartureTime)
+                .ToList();
+            return Ok(flights);
+        }
+
+        private List<FlightPrice> GetCheapestFlights(DateTime startDate, DateTime endDate)
+        {
+            // Get the IDs of the cheapest flights for each date
+            var cheapestFlightIds = _context.FlightPrices
+                .Where(fp => fp.DepartureTime >= startDate && fp.DepartureTime < endDate)
+                .GroupBy(fp => fp.DepartureTime.Date)
+                .Select(g => g.OrderBy(fp => fp.Price).First().Id)
                 .ToList();
 
-            return Ok(flights);
+            // Fetch the full details of these cheapest flights
+            var cheapestFlights = _context.FlightPrices
+                .Include(fp => fp.DepartureAirport)
+                .Include(fp => fp.ArrivalAirport)
+                .Where(fp => cheapestFlightIds.Contains(fp.Id))
+                .OrderBy(fp => fp.DepartureTime)
+                .ToList();
+
+            return cheapestFlights;
         }
     }
 }

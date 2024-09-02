@@ -1,7 +1,23 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { writable } from 'svelte/store';
-	let flightPrices: Array<{ date: string; price: number }> = [];
+	import { CalendarView } from '../lib/types/types';
+	import { fetchFlightPrices } from '../lib/types/api';
+	import Calendar from '../lib/components/Calendar.svelte';
+	import DailyView from '../lib/components/DailyView.svelte';
+
+	type FlightPrice = {
+		departureTime: string;
+		arrivalTime: string;
+		price: number;
+	};
+
+	type CalendarDay = {
+		date: Date | null;
+		flight?: FlightPrice;
+	};
+
+	let flightPrices: FlightPrice[] = [];
 	const monthNames = [
 		'January',
 		'February',
@@ -18,34 +34,58 @@
 	];
 	const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 	const today = new Date();
-	const calendarDays = writable<Array<{ date: Date | null; price?: number }>>([]);
+	const calendarDays = writable<CalendarDay[]>([]);
 
 	let year = today.getFullYear();
+	let month = today.getMonth();
+	let week = new Date(today.setDate(today.getDate() - today.getDay()));
+	let selectedDate: Date | null = null;
+	let view: CalendarView = CalendarView.Month;
+	let cheapestPrice: number;
+	let dailyFlights: FlightPrice[] = [];
 
-	$: month = today.getMonth();
 	$: monthName = monthNames[month];
 	$: daysInMonth = new Date(year, month + 1, 0).getDate();
-
-	$: cheapestPrice = Number.MAX_VALUE;
-
-	const fetchFlightPrices = async () => {
-		const response = await fetch(`/api/FlightPrices/monthly?year=${year}&month=${month}`);
-		if (response.ok) {
-			flightPrices = await response.json();
-			buildCalendar();
-		} else {
-			console.error('Failed to fetch flight prices');
+	$: titleDate = getTitleDate();
+	$: {
+		if (view !== CalendarView.Day || flightPrices.length === 0) {
+			cheapestPrice = Math.min(...flightPrices.map((fp) => fp.price));
 		}
-	};
+	}
 
 	onMount(async () => {
-		await fetchFlightPrices();
+		await updateView();
 	});
 
-	const buildCalendar = () => {
+	async function fetchMonthlyPrices() {
+		flightPrices = await fetchFlightPrices(
+			`/api/FlightPrices/monthly?year=${year}&month=${month + 1}`
+		);
+		buildMonthCalendar();
+	}
+
+	async function fetchWeeklyPrices() {
+		const endOfWeek = new Date(week);
+		endOfWeek.setDate(endOfWeek.getDate() + 6);
+
+		flightPrices = await fetchFlightPrices(
+			`/api/FlightPrices/weekly?year=${year}&month=${month + 1}&day=${week.getDate()}`
+		);
+		buildWeekCalendar(week, endOfWeek);
+	}
+
+	async function fetchDailyPrices() {
+		if (selectedDate) {
+			flightPrices = await fetchFlightPrices(
+				`/api/FlightPrices/daily?year=${selectedDate.getFullYear()}&month=${selectedDate.getMonth() + 1}&day=${selectedDate.getDate()}`
+			);
+		}
+	}
+
+	function buildMonthCalendar() {
 		const firstDay = new Date(year, month, 1);
 		const startDay = firstDay.getDay();
-		const daysArray = [];
+		const daysArray: CalendarDay[] = [];
 
 		for (let i = 0; i < startDay; i++) {
 			daysArray.push({ date: null });
@@ -53,25 +93,108 @@
 
 		for (let day = 1; day <= daysInMonth; day++) {
 			const date = new Date(year, month, day);
-			let flight = null;
-
-			if (flightPrices.length > 0) {
-				const nextFlight = new Date(flightPrices[0].date);
-				if (nextFlight.getDate() === day) {
-					flight = flightPrices.shift();
-				}
-			}
-			if (flight) {
-				daysArray.push({ date, price: flight.price });
-				cheapestPrice = Math.min(cheapestPrice, flight.price);
-				flight = null;
-			} else {
-				daysArray.push({ date });
-			}
+			const flight = flightPrices.find((fp) => new Date(fp.departureTime).getDate() === day);
+			daysArray.push({ date, flight });
 		}
-		// console.log(cheapestPrice);
+
 		calendarDays.set(daysArray);
-	};
+	}
+
+	function buildWeekCalendar(startOfWeek: Date, endOfWeek: Date) {
+		const daysArray: CalendarDay[] = [];
+		let currentDate = new Date(startOfWeek);
+
+		while (currentDate <= endOfWeek) {
+			const flight = flightPrices.find(
+				(fp) => new Date(fp.departureTime).toDateString() === currentDate.toDateString()
+			);
+			daysArray.push({ date: new Date(currentDate), flight });
+			currentDate.setDate(currentDate.getDate() + 1);
+		}
+
+		calendarDays.set(daysArray);
+	}
+
+	function setView(newView: CalendarView) {
+		view = newView;
+		jumpToToday();
+	}
+
+	async function updateView() {
+		switch (view) {
+			case CalendarView.Month:
+				await fetchMonthlyPrices();
+				break;
+			case CalendarView.Week:
+				await fetchWeeklyPrices();
+				break;
+			case CalendarView.Day:
+				await fetchDailyPrices();
+				break;
+		}
+	}
+
+	async function updateOffset(newOffset: number) {
+		switch (view) {
+			case CalendarView.Month:
+				month += newOffset;
+				if (month > 11) {
+					year++;
+					month = 0;
+				} else if (month < 0) {
+					year--;
+					month = 11;
+				}
+				selectedDate = null;
+				break;
+			case CalendarView.Week:
+				let currentDate = new Date(week);
+				if (selectedDate) {
+					currentDate = new Date(selectedDate);
+				}
+				let first = currentDate.getDate() - currentDate.getDay();
+				week = new Date(currentDate.setDate(first + newOffset * 7));
+				year = currentDate.getFullYear();
+				month = currentDate.getMonth();
+				selectedDate = null;
+				break;
+			case CalendarView.Day:
+				if (selectedDate) {
+					selectedDate = new Date(selectedDate.setDate(selectedDate.getDate() + newOffset));
+				} else {
+					let currentDate = new Date(year, month, 1);
+					currentDate.setDate(currentDate.getDate() + newOffset);
+					selectedDate = currentDate;
+				}
+				year = selectedDate.getFullYear();
+				month = selectedDate.getMonth();
+				break;
+		}
+		await tick();
+		await updateView();
+	}
+
+	async function selectDate(date: Date | undefined) {
+		if (date) {
+			selectedDate = date;
+			dailyFlights = await fetchFlightPrices(
+				`/api/FlightPrices/daily?year=${date.getFullYear()}&month=${date.getMonth() + 1}&day=${date.getDate()}`
+			);
+		}
+	}
+
+	function getTitleDate() {
+		switch (view) {
+			case CalendarView.Day:
+				return selectedDate ? selectedDate.toDateString() : new Date(year, month, 1).toDateString();
+			case CalendarView.Week:
+				const weekStart = new Date(year, month, selectedDate ? selectedDate.getDate() : 1);
+				weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+				return `Week of ${weekStart.toDateString()}`;
+			default:
+				return `${monthName}, ${year}`;
+		}
+	}
 
 	function formatDate(date: Date | null): string {
 		return date ? `${date.getDate()}` : '';
@@ -81,85 +204,84 @@
 		return price !== undefined ? `$${Math.round(price)}` : '';
 	}
 
-	const updateMonthOffset = async function (newOffset: number) {
-		month += newOffset;
-		if (month > 11) {
-			year++;
-			month = 0;
-		} else if (month < 0) {
-			year--;
-			month = 11;
-		}
-		cheapestPrice = Number.MAX_VALUE;
-		await tick();
-		await fetchFlightPrices();
-	};
+	function jumpToToday() {
+		year = today.getFullYear();
+		month = today.getMonth();
+		week = new Date(today.setDate(today.getDate() - today.getDay()));
+		selectedDate = view === CalendarView.Day ? new Date() : null;
+		updateView();
+	}
 </script>
 
 <div class="container">
 	<div class="flightScheduler">
 		<div class="dateRange">
-			<button type="button" class="jumpButton"
-				><div class="hidden md:block">Jump to Today</div>
+			<button type="button" class="jumpButton" on:click={jumpToToday}>
+				<div class="hidden md:block">Jump to Today</div>
 				<div class="block md:hidden">Today</div>
 			</button>
 			<div class="dateButtons">
-				<button type="button" class="customButton">Month</button>
-				<button type="button" class="customButton">Week</button>
-				<button type="button" class="customButton">Day</button>
+				<button
+					type="button"
+					class="dateRangeBtn"
+					class:active={view === CalendarView.Month}
+					on:click={() => setView(CalendarView.Month)}
+				>
+					Month
+				</button>
+				<button
+					type="button"
+					class="dateRangeBtn"
+					class:active={view === CalendarView.Week}
+					on:click={() => setView(CalendarView.Week)}
+				>
+					Week
+				</button>
+				<button
+					type="button"
+					class="dateRangeBtn"
+					class:active={view === CalendarView.Day}
+					on:click={() => setView(CalendarView.Day)}
+				>
+					Day
+				</button>
 			</div>
 		</div>
-		<div class=" flex items-center justify-center">
-			<button type="button" class="iconBtn" on:click={() => updateMonthOffset(-1)}>
+		<div class="flex items-center justify-center">
+			<button type="button" class="iconBtn" on:click={() => updateOffset(-1)}>
 				<i class="fa-solid fa-caret-left"></i>
 			</button>
-			<h2 class="h2 w-2/3 md:w-2/5">{monthName}, {year}</h2>
-			<button type="button" class="iconBtn" on:click={() => updateMonthOffset(1)}>
+			<h2 class="h2 w-2/3 md:w-2/5">
+				{#if view === CalendarView.Day}
+					{selectedDate ? selectedDate.toDateString() : today.toDateString()}
+				{:else if view === CalendarView.Week}
+					Week of {week.toDateString()}
+				{:else}
+					{monthName}, {year}
+				{/if}
+			</h2>
+			<button type="button" class="iconBtn" on:click={() => updateOffset(1)}>
 				<i class="fa-solid fa-caret-right"></i>
 			</button>
 		</div>
-		<div class="weekdays">
-			{#each weekdays as weekday}
-				<div class="hidden md:block">
-					{weekday}
-				</div>
-				<div class="block md:hidden">
-					{weekday.slice(0, 2)}
-				</div>
-			{/each}
-		</div>
-		<div class="calendar">
-			{#each $calendarDays as day}
-				{#if day.date && day.price !== undefined}
-					<a
-						href="#top"
-						class="card card-hover day valid {Math.round(day.price) === Math.round(cheapestPrice)
-							? 'cheapest'
-							: ''}"
-					>
-						<p class="dateBadge">{formatDate(day.date)}</p>
-						<div class="flightEntry">
-							<i
-								class="fa-solid fa-tag scale-0 md:scale-100 {Math.round(day.price) ===
-								Math.round(cheapestPrice)
-									? ''
-									: 'opacity-0'}"
-							></i>
-							<p class="price">{formatPrice(day.price)}</p>
-						</div>
-					</a>
-				{:else if day.date}
-					<div class="card day noFlight">
-						<p class="dateBadge">{formatDate(day.date)}</p>
-						<div class="flightEntry">
-							<div class="hidden lg:block">No Flights</div>
-							<div class="block lg:hidden">-</div>
-						</div>
-					</div>
-				{:else}
-					<div class="day emptyDate"></div>
-				{/if}
-			{/each}
-		</div>
+
+		{#if view != CalendarView.Day}
+			<Calendar
+				calendarDays={$calendarDays}
+				{weekdays}
+				{cheapestPrice}
+				{formatDate}
+				{formatPrice}
+				view={view === CalendarView.Month ? 'month' : 'week'}
+				{selectedDate}
+				on:selectDate={(event) => selectDate(event.detail)}
+			/>
+		{/if}
+
+		{#if view === CalendarView.Day}
+			<DailyView selectedDate={selectedDate || new Date(year, month, 1)} flights={flightPrices} />
+		{:else if selectedDate && dailyFlights.length > 0}
+			<DailyView {selectedDate} flights={dailyFlights} />
+		{/if}
 	</div>
 </div>

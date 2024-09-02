@@ -6,12 +6,18 @@ namespace Alaska_Calendar.Data
     public class ApplicationDbContext : DbContext
     {
         public DbSet<FlightPrice> FlightPrices { get; set; }
+        public DbSet<Airport> Airports { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Configure the primary key
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<Airport>()
+                 .HasIndex(a => a.Abbreviation)
+                 .IsUnique();
+
             modelBuilder.Entity<FlightPrice>().HasKey(fp => fp.Id);
 
             // Configure the Price property to use decimal(18,2)
@@ -19,7 +25,17 @@ namespace Alaska_Calendar.Data
                 .Property(fp => fp.Price)
                 .HasColumnType("decimal(18,2)");
 
-            base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<FlightPrice>()
+                .HasOne(f => f.DepartureAirport)
+                .WithMany()
+                .HasForeignKey(f => f.DepartureAirportId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<FlightPrice>()
+                .HasOne(f => f.ArrivalAirport)
+                .WithMany()
+                .HasForeignKey(f => f.ArrivalAirportId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }
