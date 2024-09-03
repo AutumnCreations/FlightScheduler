@@ -29,8 +29,8 @@
 		<table class="flight-table">
 			<thead>
 				<tr>
-					<th
-						><div class="md:hidden block"><i class="fas fa-plane-departure"></i></div>
+					<th>
+						<div class="md:hidden block"><i class="fas fa-plane-departure"></i></div>
 						<div class="hidden md:block">Departure</div></th
 					>
 					<th
@@ -52,12 +52,15 @@
 					<tr>
 						<td
 							>{formatDateTime(flight.departureTime)}
-							<i class="fas fa-plane-departure table-icon"></i>{flight.departureAirport
-								.abbreviation}
+							<i class="fas fa-plane-departure table-icon"></i><strong
+								>{flight.departureAirport.abbreviation}</strong
+							>
 						</td>
 						<td
 							>{formatDateTime(flight.arrivalTime)}
-							<i class="fas fa-plane-arrival table-icon"></i>{flight.arrivalAirport.abbreviation}
+							<i class="fas fa-plane-arrival table-icon"></i><strong
+								>{flight.arrivalAirport.abbreviation}</strong
+							>
 						</td>
 						<td
 							>{formatDuration(flight.departureTime, flight.arrivalTime)}

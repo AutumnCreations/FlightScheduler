@@ -3,6 +3,9 @@
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import type { CalendarDay, Flight } from '$lib/types/types';
+	import { fetchFlightPrices } from '$lib/types/api';
+	import { onMount } from 'svelte';
+	import { writable } from 'svelte/store';
 
 	export let calendarDays: CalendarDay[];
 	export let weekdays: string[];
@@ -13,6 +16,8 @@
 	export let selectedDate: Date | null;
 
 	const dispatch = createEventDispatcher();
+	const flightCounts = writable<Record<string, number>>({});
+	const flightInfo = writable<Record<string, DayFlightInfo>>({});
 
 	$: isToday = (date: Date | null) => {
 		if (!date) return false;
@@ -33,6 +38,29 @@
 		);
 	};
 
+	type DayFlightInfo = {
+		count: number;
+		firstFlight?: Flight;
+		lastFlight?: Flight;
+	};
+
+	// Used for popup info display
+	async function fetchDayFlightInfo(date: Date): Promise<DayFlightInfo> {
+		const dateString = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+		if (!$flightInfo[dateString]) {
+			const flights: Flight[] = await fetchFlightPrices(
+				`/api/FlightPrices/daily?year=${date.getFullYear()}&month=${date.getMonth() + 1}&day=${date.getDate()}`
+			);
+			const info: DayFlightInfo = {
+				count: flights.length,
+				firstFlight: flights[0],
+				lastFlight: flights[flights.length - 1]
+			};
+			flightInfo.update((currentInfo) => ({ ...currentInfo, [dateString]: info }));
+		}
+		return $flightInfo[dateString];
+	}
+
 	function handleDateClick(date: Date | null) {
 		if (date) {
 			dispatch('selectDate', date);
@@ -43,26 +71,36 @@
 		}
 	}
 
-	function formatPopupContent(day: CalendarDay) {
+	async function formatPopupContent(day: CalendarDay) {
 		if (!day.date || !day.flight) return '';
 		const dateString = day.date.toLocaleDateString();
-		const departureTime = new Date(day.flight.departureTime).toLocaleTimeString([], {
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-		const arrivalTime = new Date(day.flight.arrivalTime).toLocaleTimeString([], {
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-		return `${dateString}<br>Departure: ${departureTime}<br>Arrival: ${arrivalTime}<br>Price: ${formatPrice(day.flight.price)}`;
+		const info = await fetchDayFlightInfo(day.date);
+
+		const formatTime = (date: string) =>
+			new Date(date).toLocaleTimeString([], {
+				hour: 'numeric',
+				minute: '2-digit',
+				hour12: true
+			});
+
+		let content = `${info.count} flight${info.count !== 1 ? 's' : ''}<br>`;
+
+		if (info.firstFlight) {
+			content += `First: ${formatTime(info.firstFlight.departureTime)}<br>`;
+		}
+
+		if (info.lastFlight) {
+			content += `Last: ${formatTime(info.lastFlight.departureTime)}<br>`;
+		}
+
+		return content;
 	}
 
 	function getPopupSettings(target: string): PopupSettings {
 		return {
 			event: 'hover',
 			target: target,
-			placement: 'top',
-			closeQuery: '.closest-remove'
+			placement: 'top'
 		};
 	}
 </script>
@@ -83,8 +121,9 @@
 			<button
 				use:popup={getPopupSettings(`popup-${i}`)}
 				on:click={() => handleDateClick(day.date)}
+				on:mouseenter={() => day.date && fetchDayFlightInfo(day.date)}
 				disabled={!day.flight}
-				class="card day {day.flight ? 'valid card-hover' : 'noFlight'} 
+				class="card day [&>*]:pointer-events-none {day.flight ? 'valid card-hover' : 'noFlight'} 
 					{day.flight && Math.round(day.flight.price) === Math.round(cheapestPrice) ? 'cheapest' : ''} 
 					{isToday(day.date) ? 'today' : ''}
 					{isSelected(day.date) ? 'selected' : ''}"
@@ -108,8 +147,14 @@
 				</div>
 			</button>
 			{#if day.flight}
-				<div class="card p-2 shadow-xl" data-popup="popup-{i}">
-					{@html formatPopupContent(day)}
+				<div class="card p-2 shadow-xl variant-filled-secondary z-10" data-popup="popup-{i}">
+					{#await formatPopupContent(day)}
+						Loading...
+					{:then content}
+						{@html content}
+					{:catch error}
+						Error loading flight information
+					{/await}
 					<div class="arrow bg-surface-100-800-token" />
 				</div>
 			{/if}

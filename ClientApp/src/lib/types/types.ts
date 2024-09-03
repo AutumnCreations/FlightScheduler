@@ -24,4 +24,5 @@ export interface Flight {
 export type CalendarDay = {
 	date: Date | null;
 	flight?: Flight;
+	flights?: Number;
 };
