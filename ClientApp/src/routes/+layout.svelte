@@ -18,6 +18,13 @@
 				</strong>
 			</svelte:fragment>
 			<svelte:fragment slot="trail">
+				<a
+					class="text-xl"
+					href="https://github.com/AutumnCreations/FlightScheduler"
+					target="_blank"
+				>
+					<i class="fa-brands fa-github"></i>
+				</a>
 				<LightSwitch />
 			</svelte:fragment>
 		</AppBar>

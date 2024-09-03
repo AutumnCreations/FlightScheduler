@@ -1,23 +1,12 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { writable } from 'svelte/store';
-	import { CalendarView } from '../lib/types/types';
+	import { CalendarView, type CalendarDay, type Flight } from '../lib/types/types';
 	import { fetchFlightPrices } from '../lib/types/api';
 	import Calendar from '../lib/components/Calendar.svelte';
 	import DailyView from '../lib/components/DailyView.svelte';
 
-	type FlightPrice = {
-		departureTime: string;
-		arrivalTime: string;
-		price: number;
-	};
-
-	type CalendarDay = {
-		date: Date | null;
-		flight?: FlightPrice;
-	};
-
-	let flightPrices: FlightPrice[] = [];
+	let flightPrices: Flight[] = [];
 	const monthNames = [
 		'January',
 		'February',
@@ -42,11 +31,10 @@
 	let selectedDate: Date | null = null;
 	let view: CalendarView = CalendarView.Month;
 	let cheapestPrice: number;
-	let dailyFlights: FlightPrice[] = [];
+	let dailyFlights: Flight[] = [];
 
 	$: monthName = monthNames[month];
 	$: daysInMonth = new Date(year, month + 1, 0).getDate();
-	$: titleDate = getTitleDate();
 	$: {
 		if (view !== CalendarView.Day || flightPrices.length === 0) {
 			cheapestPrice = Math.min(...flightPrices.map((fp) => fp.price));
@@ -183,19 +171,6 @@
 		}
 	}
 
-	function getTitleDate() {
-		switch (view) {
-			case CalendarView.Day:
-				return selectedDate ? selectedDate.toDateString() : new Date(year, month, 1).toDateString();
-			case CalendarView.Week:
-				const weekStart = new Date(year, month, selectedDate ? selectedDate.getDate() : 1);
-				weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-				return `Week of ${weekStart.toDateString()}`;
-			default:
-				return `${monthName}, ${year}`;
-		}
-	}
-
 	function formatDate(date: Date | null): string {
 		return date ? `${date.getDate()}` : '';
 	}
@@ -251,7 +226,7 @@
 			<button type="button" class="iconBtn" on:click={() => updateOffset(-1)}>
 				<i class="fa-solid fa-caret-left"></i>
 			</button>
-			<h2 class="h2 w-2/3 md:w-2/5">
+			<h2 class="h2 w-2/3 md:w-2/5 md:w-min-96">
 				{#if view === CalendarView.Day}
 					{selectedDate ? selectedDate.toDateString() : today.toDateString()}
 				{:else if view === CalendarView.Week}

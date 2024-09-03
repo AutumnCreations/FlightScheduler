@@ -1,12 +1,8 @@
 <script lang="ts">
-	type FlightPrice = {
-		departureTime: string;
-		arrivalTime: string;
-		price: number;
-	};
+	import type { Flight } from '$lib/types/types';
 
 	export let selectedDate: Date;
-	export let flights: FlightPrice[];
+	export let flights: Flight[];
 
 	function formatDateTime(dateTimeString: string): string {
 		const date = new Date(dateTimeString);
@@ -56,11 +52,12 @@
 					<tr>
 						<td
 							>{formatDateTime(flight.departureTime)}
-							<i class="fas fa-plane-departure table-icon"></i>
+							<i class="fas fa-plane-departure table-icon"></i>{flight.departureAirport
+								.abbreviation}
 						</td>
 						<td
 							>{formatDateTime(flight.arrivalTime)}
-							<i class="fas fa-plane-arrival table-icon"></i>
+							<i class="fas fa-plane-arrival table-icon"></i>{flight.arrivalAirport.abbreviation}
 						</td>
 						<td
 							>{formatDuration(flight.departureTime, flight.arrivalTime)}
@@ -69,7 +66,7 @@
 						<td
 							>${flight.price.toFixed(2)}
 							{#if flights.length > 1 && flight.price === Math.min(...flights.map((f) => f.price))}
-								<i class="fas fa-tag cheapest mx-2"></i>
+								<i class="fas fa-tag cheapest ml-1"></i>
 							{/if}
 						</td>
 					</tr>

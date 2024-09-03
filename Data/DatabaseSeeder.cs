@@ -41,7 +41,7 @@ public static class DatabaseSeeder
             {
                 var departureTime = startDate.AddHours(random.Next(0, 24)).AddMinutes(random.Next(0, 60));
                 // Random flight duration within reasonable range for a domestic flight
-                var flightDuration = TimeSpan.FromMinutes(random.Next(80, 5 * 299));
+                var flightDuration = TimeSpan.FromMinutes(random.Next(80, 299));
                 var arrivalTime = departureTime.Add(flightDuration);
 
                 var departureAirport = airports[random.Next(airports.Count)];

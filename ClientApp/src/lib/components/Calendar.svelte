@@ -2,17 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
-
-	type FlightPrice = {
-		departureTime: string;
-		arrivalTime: string;
-		price: number;
-	};
-
-	type CalendarDay = {
-		date: Date | null;
-		flight?: FlightPrice;
-	};
+	import type { CalendarDay, Flight } from '$lib/types/types';
 
 	export let calendarDays: CalendarDay[];
 	export let weekdays: string[];
@@ -46,6 +36,10 @@
 	function handleDateClick(date: Date | null) {
 		if (date) {
 			dispatch('selectDate', date);
+			const flightTable = document.querySelector('.flight-table');
+			if (flightTable) {
+				flightTable.scrollIntoView({ behavior: 'smooth' });
+			}
 		}
 	}
 
@@ -95,7 +89,9 @@
 					{isToday(day.date) ? 'today' : ''}
 					{isSelected(day.date) ? 'selected' : ''}"
 			>
-				<p class="dateBadge">{formatDate(day.date)}</p>
+				<p class="dateBadge">
+					{formatDate(day.date)}
+				</p>
 				<div class="flightEntry">
 					{#if day.flight}
 						<i
