@@ -12,9 +12,9 @@
 	<svelte:fragment slot="header">
 		<AppBar>
 			<svelte:fragment slot="lead">
-				<strong class="text-xl w-44 md:w-full"
+				<strong class="text-xl w-44 md:w-full" aria-label="Flight Scheduler Simulator"
 					>Flight Scheduler Simulator
-					<i class="fas fa-plane-departure mx-0 md:mx-1"></i>
+					<i class="fas fa-plane-departure mx-0 md:mx-1" aria-hidden="true"></i>
 				</strong>
 			</svelte:fragment>
 			<svelte:fragment slot="trail">
@@ -22,13 +22,14 @@
 					class="text-xl"
 					href="https://github.com/AutumnCreations/FlightScheduler"
 					target="_blank"
+					rel="noopener noreferrer"
+					aria-label="View project on GitHub"
 				>
-					<i class="fa-brands fa-github"></i>
+					<i class="fa-brands fa-github" aria-hidden="true"></i>
 				</a>
-				<LightSwitch />
+				<LightSwitch aria-label="Toggle light/dark mode" />
 			</svelte:fragment>
 		</AppBar>
 	</svelte:fragment>
-	<!-- Page Route Content -->
 	<slot />
 </AppShell>

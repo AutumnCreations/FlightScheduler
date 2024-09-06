@@ -97,19 +97,20 @@
 	}
 </script>
 
-<div class="weekdays">
+<div class="weekdays" role="row" aria-label="Days of the week">
 	{#each weekdays as weekday}
-		<div class="hidden md:block">
+		<div class="hidden md:block" role="columnheader">
 			{weekday}
 		</div>
-		<div class="block md:hidden">
+		<div class="block md:hidden" role="columnheader" aria-label={weekday}>
+			{weekday.slice(0, 2)}>
 			{weekday.slice(0, 2)}
 		</div>
 	{/each}
 </div>
 {#key animationKey}
 	{#if isCalendarReady}
-		<div class="calendar {view}">
+		<div class="calendar {view}" role="grid" aria-label="Calendar Dates">
 			{#each calendarDays as day, i (day.date?.toISOString() || i)}
 				{#if day.date}
 					<button
@@ -127,6 +128,11 @@
 							: ''} 
                             {isToday(day.date) ? 'today' : ''}
                             {isSameDate(day.date, selectedDate) ? 'selected' : ''}"
+						role="gridcell"
+						aria-selected={isSameDate(day.date, selectedDate)}
+						aria-label="{formatDate(day.date)} {day.flight
+							? `Price: ${formatPrice(day.flight.price)}`
+							: 'No flights'}"
 					>
 						<p class="dateBadge">
 							{formatDate(day.date)}
@@ -151,6 +157,7 @@
 							use:animateOnLoad={{ delay: i * animationDelay, key: animationKey }}
 							class="card p-2 shadow-xl variant-filled-secondary z-10 opacity-0 invisible transition-opacity duration-75 ease-out [&>*]:pointer-events-none"
 							data-popup="popup-{i}"
+							aria-hidden="true"
 						>
 							{#await formatPopupContent(day)}
 								Loading...
@@ -163,7 +170,7 @@
 						</div>
 					{/if}
 				{:else}
-					<div class="day emptyDate"></div>
+					<div class="day emptyDate" role="gridcell" aria-hidden="true"></div>
 				{/if}
 			{/each}
 		</div>

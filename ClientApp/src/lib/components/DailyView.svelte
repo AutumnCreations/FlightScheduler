@@ -19,26 +19,39 @@
 	$: animationKey = selectedDate.toISOString();
 </script>
 
-<div class="daily-view" use:animateOnLoad={{ key: animationKey }}>
+<div
+	class="daily-view"
+	use:animateOnLoad={{ key: animationKey }}
+	role="region"
+	aria-label="Available flights for {selectedDate.toDateString()}"
+>
 	<h3>Available flights for {selectedDate.toDateString()}</h3>
 	{#if flights.length > 0}
-		<table class="flight-table">
+		<table class="flight-table" aria-labelledby="flights-heading">
 			<thead>
 				<tr>
-					<th>
-						<div class="md:hidden block"><i class="fas fa-plane-departure"></i></div>
+					<th scope="col">
+						<div class="md:hidden block" aria-hidden="true">
+							<i class="fas fa-plane-departure"></i>
+						</div>
 						<div class="hidden md:block">Departure</div>
 					</th>
-					<th>
-						<div class="md:hidden block"><i class="fas fa-plane-arrival"></i></div>
+					<th scope="col">
+						<div class="md:hidden block" aria-hidden="true">
+							<i class="fas fa-plane-arrival"></i>
+						</div>
 						<div class="hidden md:block">Arrival</div>
 					</th>
-					<th>
-						<div class="md:hidden block"><i class="fas fa-clock"></i></div>
+					<th scope="col">
+						<div class="md:hidden block" aria-hidden="true">
+							<i class="fas fa-clock"></i>
+						</div>
 						<div class="hidden md:block">Duration</div>
 					</th>
-					<th>
-						<div class="md:hidden block"><i class="fas fa-dollar"></i></div>
+					<th scope="col">
+						<div class="md:hidden block" aria-hidden="true">
+							<i class="fas fa-dollar"></i>
+						</div>
 						<div class="hidden md:block">Price</div>
 					</th>
 				</tr>
@@ -52,18 +65,23 @@
 								key: `${animationKey}-${i}-departure`
 							}}
 						>
+							<span class="sr-only">Departure:</span>
 							{formatTime(flight.departureTime)}
-							<i class="fas fa-plane-departure table-icon"></i><strong
-								>{flight.departureAirport.abbreviation}</strong
-							>
+							<i class="fas fa-plane-departure table-icon" aria-hidden="true"></i>
+							<span class="sr-only">{flight.departureAirport.name}</span>
+							<strong>{flight.departureAirport.abbreviation}</strong>
 						</td>
 						<td
-							use:animateOnLoad={{ delay: i * animationDelay, key: `${animationKey}-${i}-arrival` }}
+							use:animateOnLoad={{
+								delay: i * animationDelay,
+								key: `${animationKey}-${i}-arrival`
+							}}
 						>
+							<span class="sr-only">Arrival:</span>
 							{formatTime(flight.arrivalTime)}
-							<i class="fas fa-plane-arrival table-icon"></i><strong
-								>{flight.arrivalAirport.abbreviation}</strong
-							>
+							<i class="fas fa-plane-arrival table-icon" aria-hidden="true"></i>
+							<span class="sr-only">{flight.arrivalAirport.name}</span>
+							<strong>{flight.arrivalAirport.abbreviation}</strong>
 						</td>
 						<td
 							use:animateOnLoad={{
@@ -71,15 +89,21 @@
 								key: `${animationKey}-${i}-duration`
 							}}
 						>
+							<span class="sr-only">Duration:</span>
 							{formatDuration(flight.departureTime, flight.arrivalTime)}
-							<i class="fas fa-clock table-icon"></i>
+							<i class="fas fa-clock table-icon" aria-hidden="true"></i>
 						</td>
 						<td
-							use:animateOnLoad={{ delay: i * animationDelay, key: `${animationKey}-${i}-price` }}
+							use:animateOnLoad={{
+								delay: i * animationDelay,
+								key: `${animationKey}-${i}-price`
+							}}
 						>
+							<span class="sr-only">Price:</span>
 							${flight.price.toFixed(2)}
 							{#if flights.length > 1 && flight.price === Math.min(...flights.map((f) => f.price))}
-								<i class="fas fa-tag cheapest ml-1"></i>
+								<span class="sr-only">Cheapest flight for this day</span>
+								<i class="fas fa-tag cheapest ml-1" aria-hidden="true"></i>
 							{/if}
 						</td>
 					</tr>

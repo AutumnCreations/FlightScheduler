@@ -175,39 +175,52 @@
 	}
 </script>
 
-<div class="container">
+<div class="container" role="main">
 	<div class="flightScheduler">
-		<div class="dateRange">
-			<button type="button" class="jumpButton" on:click={jumpToToday}>
+		<div class="dateRange" role="toolbar" aria-label="Date range controls">
+			<button type="button" class="jumpButton" on:click={jumpToToday} aria-label="Jump to today">
 				<div class="hidden md:block">Jump to Today</div>
 				<div class="block md:hidden">Today</div>
 			</button>
-			<div class="dateButtons">
+			<div class="dateButtons" role="radiogroup" aria-label="Calendar View Selection">
 				<button
 					type="button"
 					class="dateRangeBtn"
 					class:active={view === CalendarView.Month}
-					on:click={() => setView(CalendarView.Month)}>Month</button
+					on:click={() => setView(CalendarView.Month)}
+					aria-pressed={view === CalendarView.Month}
+					aria-label="Month view"
 				>
+					Month
+				</button>
 				<button
 					type="button"
 					class="dateRangeBtn"
 					class:active={view === CalendarView.Week}
-					on:click={() => setView(CalendarView.Week)}>Week</button
+					on:click={() => setView(CalendarView.Week)}
+					aria-pressed={view === CalendarView.Week}
+					aria-label="Week view">Week</button
 				>
 				<button
 					type="button"
 					class="dateRangeBtn"
 					class:active={view === CalendarView.Day}
-					on:click={() => setView(CalendarView.Day)}>Day</button
+					on:click={() => setView(CalendarView.Day)}
+					aria-pressed={view === CalendarView.Day}
+					aria-label="Day view">Day</button
 				>
 			</div>
 		</div>
-		<div class="flex items-center justify-center">
-			<button type="button" class="iconBtn" on:click={() => updateOffset(-1)}>
-				<i class="fa-solid fa-caret-left"></i>
+		<div class="flex items-center justify-center" role="group" aria-label="Date navigation">
+			<button
+				type="button"
+				class="iconBtn"
+				on:click={() => updateOffset(-1)}
+				aria-label="Previous period"
+			>
+				<i class="fa-solid fa-caret-left" aria-hidden="true"></i>
 			</button>
-			<h2 class="h2 w-2/3 md:w-2/5 md:w-min-96">
+			<h2 class="h2 w-2/3 md:w-2/5 md:w-min-96" aria-live="polite">
 				{#if view === CalendarView.Day}
 					{selectedDate ? selectedDate.toDateString() : today.toDateString()}
 				{:else if view === CalendarView.Week}
@@ -216,7 +229,12 @@
 					{monthName}, {year}
 				{/if}
 			</h2>
-			<button type="button" class="iconBtn" on:click={() => updateOffset(1)}>
+			<button
+				type="button"
+				class="iconBtn"
+				on:click={() => updateOffset(1)}
+				aria-label="Next period"
+			>
 				<i class="fa-solid fa-caret-right"></i>
 			</button>
 		</div>
