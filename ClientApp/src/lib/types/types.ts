@@ -26,3 +26,9 @@ export type CalendarDay = {
 	flight?: Flight;
 	flights?: Number;
 };
+
+export type DayFlightInfo = {
+	count: number;
+	firstFlight?: Flight;
+	lastFlight?: Flight;
+};

@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
-	import { CalendarView, type CalendarDay, type Flight } from '../lib/types/types';
-	import { fetchFlightPrices } from '../lib/types/api';
-	import Calendar from '../lib/components/Calendar.svelte';
-	import DailyView from '../lib/components/DailyView.svelte';
+	import { CalendarView, type CalendarDay, type Flight } from '$lib/types/types';
+	import { fetchFlightPrices } from '$lib/types/api';
+	import Calendar from '$lib/components/Calendar.svelte';
+	import DailyView from '$lib/components/DailyView.svelte';
 
 	let flightPrices: Flight[] = [];
 	const monthNames = [
@@ -55,7 +55,6 @@
 	async function fetchWeeklyPrices() {
 		const endOfWeek = new Date(week);
 		endOfWeek.setDate(endOfWeek.getDate() + 6);
-
 		flightPrices = await fetchFlightPrices(
 			`/api/FlightPrices/weekly?year=${year}&month=${month + 1}&day=${week.getDate()}`
 		);
@@ -136,14 +135,11 @@
 				selectedDate = null;
 				break;
 			case CalendarView.Week:
-				let currentDate = new Date(week);
-				if (selectedDate) {
-					currentDate = new Date(selectedDate);
-				}
+				let currentDate = selectedDate || week;
 				let first = currentDate.getDate() - currentDate.getDay();
 				week = new Date(currentDate.setDate(first + newOffset * 7));
-				year = currentDate.getFullYear();
-				month = currentDate.getMonth();
+				year = week.getFullYear();
+				month = week.getMonth();
 				selectedDate = null;
 				break;
 			case CalendarView.Day:
@@ -158,7 +154,6 @@
 				month = selectedDate.getMonth();
 				break;
 		}
-		await tick();
 		await updateView();
 	}
 
@@ -169,14 +164,6 @@
 				`/api/FlightPrices/daily?year=${date.getFullYear()}&month=${date.getMonth() + 1}&day=${date.getDate()}`
 			);
 		}
-	}
-
-	function formatDate(date: Date | null): string {
-		return date ? `${date.getDate()}` : '';
-	}
-
-	function formatPrice(price?: number): string {
-		return price !== undefined ? `$${Math.round(price)}` : '';
 	}
 
 	function jumpToToday() {
@@ -200,26 +187,20 @@
 					type="button"
 					class="dateRangeBtn"
 					class:active={view === CalendarView.Month}
-					on:click={() => setView(CalendarView.Month)}
+					on:click={() => setView(CalendarView.Month)}>Month</button
 				>
-					Month
-				</button>
 				<button
 					type="button"
 					class="dateRangeBtn"
 					class:active={view === CalendarView.Week}
-					on:click={() => setView(CalendarView.Week)}
+					on:click={() => setView(CalendarView.Week)}>Week</button
 				>
-					Week
-				</button>
 				<button
 					type="button"
 					class="dateRangeBtn"
 					class:active={view === CalendarView.Day}
-					on:click={() => setView(CalendarView.Day)}
+					on:click={() => setView(CalendarView.Day)}>Day</button
 				>
-					Day
-				</button>
 			</div>
 		</div>
 		<div class="flex items-center justify-center">
@@ -245,8 +226,6 @@
 				calendarDays={$calendarDays}
 				{weekdays}
 				{cheapestPrice}
-				{formatDate}
-				{formatPrice}
 				view={view === CalendarView.Month ? 'month' : 'week'}
 				{selectedDate}
 				on:selectDate={(event) => selectDate(event.detail)}

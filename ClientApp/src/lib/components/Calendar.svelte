@@ -1,48 +1,48 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, tick } from 'svelte';
 	import { popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import type { CalendarDay, Flight } from '$lib/types/types';
 	import { fetchFlightPrices } from '$lib/types/api';
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
+	import { animateOnLoad, isToday, isSameDate, formatTime, getPopupSettings } from '$lib/index';
 
 	export let calendarDays: CalendarDay[];
 	export let weekdays: string[];
 	export let cheapestPrice: number;
-	export let formatDate: (date: Date | null) => string;
-	export let formatPrice: (price?: number) => string;
 	export let view: 'month' | 'week';
 	export let selectedDate: Date | null;
 
+	let isCalendarReady = false;
+
+	const animationDelay = 50;
 	const dispatch = createEventDispatcher();
-	const flightCounts = writable<Record<string, number>>({});
 	const flightInfo = writable<Record<string, DayFlightInfo>>({});
 
-	$: isToday = (date: Date | null) => {
-		if (!date) return false;
-		const today = new Date();
-		return (
-			date.getDate() === today.getDate() &&
-			date.getMonth() === today.getMonth() &&
-			date.getFullYear() === today.getFullYear()
-		);
-	};
+	$: currentMonth = calendarDays[0]?.date?.getMonth();
+	$: currentYear = calendarDays[0]?.date?.getFullYear();
+	$: animationKey = `${view}-${currentYear}-${currentMonth}`;
 
-	$: isSelected = (date: Date | null) => {
-		if (!date || !selectedDate) return false;
-		return (
-			date.getDate() === selectedDate.getDate() &&
-			date.getMonth() === selectedDate.getMonth() &&
-			date.getFullYear() === selectedDate.getFullYear()
-		);
-	};
+	// Replay calendar animations when view, month, or year changes
+	$: {
+		if (view || currentMonth || currentYear) {
+			isCalendarReady = false;
+			setTimeout(async () => {
+				await tick();
+				isCalendarReady = true;
+			}, 0);
+		}
+	}
 
 	type DayFlightInfo = {
 		count: number;
 		firstFlight?: Flight;
 		lastFlight?: Flight;
 	};
+
+	onMount(() => {
+		isCalendarReady = true;
+	});
 
 	// Used for popup info display
 	async function fetchDayFlightInfo(date: Date): Promise<DayFlightInfo> {
@@ -73,15 +73,7 @@
 
 	async function formatPopupContent(day: CalendarDay) {
 		if (!day.date || !day.flight) return '';
-		const dateString = day.date.toLocaleDateString();
 		const info = await fetchDayFlightInfo(day.date);
-
-		const formatTime = (date: string) =>
-			new Date(date).toLocaleTimeString([], {
-				hour: 'numeric',
-				minute: '2-digit',
-				hour12: true
-			});
 
 		let content = `${info.count} flight${info.count !== 1 ? 's' : ''}<br>`;
 
@@ -96,12 +88,12 @@
 		return content;
 	}
 
-	function getPopupSettings(target: string): PopupSettings {
-		return {
-			event: 'hover',
-			target: target,
-			placement: 'top'
-		};
+	function formatDate(date: Date | null): string {
+		return date ? `${date.getDate()}` : '';
+	}
+
+	function formatPrice(price?: number): string {
+		return price ? `$${Math.round(price)}` : '';
 	}
 </script>
 
@@ -115,51 +107,65 @@
 		</div>
 	{/each}
 </div>
-<div class="calendar {view}">
-	{#each calendarDays as day, i}
-		{#if day.date}
-			<button
-				use:popup={getPopupSettings(`popup-${i}`)}
-				on:click={() => handleDateClick(day.date)}
-				on:mouseenter={() => day.date && fetchDayFlightInfo(day.date)}
-				disabled={!day.flight}
-				class="card day [&>*]:pointer-events-none {day.flight ? 'valid card-hover' : 'noFlight'} 
-					{day.flight && Math.round(day.flight.price) === Math.round(cheapestPrice) ? 'cheapest' : ''} 
-					{isToday(day.date) ? 'today' : ''}
-					{isSelected(day.date) ? 'selected' : ''}"
-			>
-				<p class="dateBadge">
-					{formatDate(day.date)}
-				</p>
-				<div class="flightEntry">
+{#key animationKey}
+	{#if isCalendarReady}
+		<div class="calendar {view}">
+			{#each calendarDays as day, i (day.date?.toISOString() || i)}
+				{#if day.date}
+					<button
+						use:popup={getPopupSettings(`popup-${i}`)}
+						use:animateOnLoad={{ delay: i * animationDelay, key: animationKey }}
+						on:click={() => handleDateClick(day.date)}
+						on:mouseenter={() => day.date && fetchDayFlightInfo(day.date)}
+						disabled={!day.flight}
+						class="card day [&>*]:pointer-events-none {day.flight
+							? 'valid card-hover'
+							: 'noFlight'} 
+                            {day.flight &&
+						Math.round(day.flight.price) === Math.round(cheapestPrice)
+							? 'cheapest'
+							: ''} 
+                            {isToday(day.date) ? 'today' : ''}
+                            {isSameDate(day.date, selectedDate) ? 'selected' : ''}"
+					>
+						<p class="dateBadge">
+							{formatDate(day.date)}
+						</p>
+						<div class="flightEntry">
+							{#if day.flight}
+								<i
+									class="fa-solid fa-tag scale-0 md:scale-100 {Math.round(day.flight.price) ===
+									Math.round(cheapestPrice)
+										? ''
+										: 'opacity-0'}"
+								></i>
+								<p class="price">{formatPrice(day.flight.price)}</p>
+							{:else}
+								<div class="hidden lg:block">No Flights</div>
+								<div class="block lg:hidden">-</div>
+							{/if}
+						</div>
+					</button>
 					{#if day.flight}
-						<i
-							class="fa-solid fa-tag scale-0 md:scale-100 {Math.round(day.flight.price) ===
-							Math.round(cheapestPrice)
-								? ''
-								: 'opacity-0'}"
-						></i>
-						<p class="price">{formatPrice(day.flight.price)}</p>
-					{:else}
-						<div class="hidden lg:block">No Flights</div>
-						<div class="block lg:hidden">-</div>
+						<div
+							use:animateOnLoad={{ delay: i * animationDelay, key: animationKey }}
+							class="card p-2 shadow-xl variant-filled-secondary z-10 opacity-0 invisible transition-opacity duration-75 ease-out [&>*]:pointer-events-none"
+							data-popup="popup-{i}"
+						>
+							{#await formatPopupContent(day)}
+								Loading...
+							{:then content}
+								{@html content}
+							{:catch error}
+								Error loading flight information
+							{/await}
+							<div class="arrow bg-surface-100-800-token" />
+						</div>
 					{/if}
-				</div>
-			</button>
-			{#if day.flight}
-				<div class="card p-2 shadow-xl variant-filled-secondary z-10" data-popup="popup-{i}">
-					{#await formatPopupContent(day)}
-						Loading...
-					{:then content}
-						{@html content}
-					{:catch error}
-						Error loading flight information
-					{/await}
-					<div class="arrow bg-surface-100-800-token" />
-				</div>
-			{/if}
-		{:else}
-			<div class="day emptyDate"></div>
-		{/if}
-	{/each}
-</div>
+				{:else}
+					<div class="day emptyDate"></div>
+				{/if}
+			{/each}
+		</div>
+	{/if}
+{/key}
